@@ -40,8 +40,8 @@ def ai_list_agent(query, data):
 
 # --- 3. UI構成 ---
 st.set_page_config(page_title="AI Target Agent", layout="wide")
-st.title("🧠 AIターゲット・エージェント")
-st.markdown("### Clay風：自然言語でアタックリストを作成")
+st.title("AIエージェントターゲティング")
+st.markdown("### ざっくりした条件で企業を検索")
 
 # ユーザー入力
 user_input = st.text_area(
