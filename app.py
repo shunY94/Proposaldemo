@@ -51,10 +51,10 @@ st.title("🎯 AIターゲット・エージェント")
 
 # AI入力エリア
 with st.container(border=True):
-    st.subheader("🪄 AIに要望を伝えてリストの雛形を作る")
+    st.subheader("🪄 AIに要望を伝えて企業を検索")
     col_input, col_btn = st.columns([8, 2])
     with col_input:
-        user_prompt = st.text_input("例：渋谷で100人規模の本社を探して", placeholder="ここにやりたいことを入力してください...", label_visibility="collapsed")
+        user_prompt = st.text_input("例：渋谷で100人規模の本社を探して", placeholder="港区の300坪の区画に入る企業を教えて", label_visibility="collapsed")
     with col_btn:
         if st.button("条件を生成", use_container_width=True, type="primary"):
             apply_ai_prompt(user_prompt)
@@ -63,7 +63,7 @@ with st.container(border=True):
 # --- 5. サイドバー：詳細検索条件 ---
 with st.sidebar:
     st.header("🔍 詳細検索条件")
-    st.write("ここで条件を自由に変更し、下のボタンで決定してください。")
+    st.write("ここで条件を自由に変更し、下のボタンで再検索してください。")
     
     # セッション状態と連動した入力フォーム
     st.session_state.edit_filters["hq_only"] = st.checkbox("本社に限定", value=st.session_state.edit_filters["hq_only"])
