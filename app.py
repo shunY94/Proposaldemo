@@ -2,79 +2,85 @@ import streamlit as st
 import pandas as pd
 import time
 
-# --- 1. モックデータの設定 (本来はAPIやDBから取得) ---
-def get_external_data():
-    """3rd Partyデータ（求人・財務）"""
+# --- 1. 拡張モックデータ（場所や従業員数を追加） ---
+def get_advanced_data():
     return pd.DataFrame({
-        "企業名": ["テック未来", "グローバル商事", "スマート製造", "データラボ", "スピード配送"],
-        "成長率": [125, 105, 140, 95, 110],  # 前年比%
-        "求人増加": [15, 2, 25, -5, 8],      # 先月比件数
-        "主要セクター": ["IT", "卸売", "製造", "IT", "物流"]
+        "企業名": ["テック未来", "グローバル商事", "スマート製造", "データラボ", "スピード配送", "渋谷クリエイティブ", "エビスAI"],
+        "所在地": ["渋谷区", "中央区", "港区", "渋谷区", "品川区", "渋谷区", "渋谷区"],
+        "従業員数": [85, 200, 45, 120, 30, 70, 55],
+        "成長率": [140, 105, 110, 130, 95, 150, 120],
+        "最終商談日": ["2024-01-15", "2023-11-20", None, "2024-03-01", None, None, "2024-02-10"],
+        "接点者": ["田中", "佐藤", "なし", "鈴木", "なし", "なし", "高橋"]
     })
 
-def get_internal_data():
-    """内部データ（名刺・商談履歴）"""
-    return pd.DataFrame({
-        "企業名": ["テック未来", "グローバル商事", "スマート製造", "新規化学"],
-        "接点者": ["田中(営業1課)", "佐藤(部長)", "鈴木(営業2課)", "なし"],
-        "最終商談日": ["2024-01-15", "2023-11-20", "2024-03-01", None],
-        "ステータス": ["検討中", "停滞", "初回訪問", "未接点"]
-    })
-
-# --- 2. 画面構成 ---
-st.set_page_config(page_title="Sales Intelligence Demo", layout="wide")
-st.title("🚀 ターゲット企業リスト生成デモ")
-st.markdown("MCP概念を模した、外部データと内部データの自動突合アプリケーションです。")
-
-# サイドバー：検索条件
-st.sidebar.header("検索フィルタ")
-min_growth = st.sidebar.slider("最低成長率 (%)", 100, 150, 110)
-job_increase = st.sidebar.number_input("求人増加数 (以上)", 0, 50, 5)
-
-if st.button("ターゲットを抽出する"):
-    with st.spinner('データを照合中...'):
-        time.sleep(1.5)  # 処理をシミュレート
-        
-        # データのロード
-        ext_df = get_external_data()
-        int_df = get_internal_data()
-        
-        # 1. 外部データでフィルタリング
-        filtered_ext = ext_df[(ext_df["成長率"] >= min_growth) & (ext_df["求人増加"] >= job_increase)]
-        
-        # 2. 内部データと結合 (Left Join)
-        result = pd.merge(filtered_ext, int_df, on="企業名", how="left")
-        
-        # 3. AI的な優先度付け（簡易ロジック）
-        def scoring(row):
-            score = row["成長率"] * 0.5 + row["求人増加"] * 2
-            if pd.isna(row["接点者"]): score -= 20  # 接点なしは優先度下げ
-            return score
-        
-        result["スコア"] = result.apply(scoring, axis=1)
-        result = result.sort_values("スコア", ascending=False)
-
-    # --- 3. 結果表示 ---
-    st.subheader("📊 抽出結果: AI推奨アプローチリスト")
+# --- 2. 簡易AIエンジン（自然言語を解析してフィルタを作る） ---
+def ai_list_agent(query, data):
+    query = query.lower()
+    filtered_df = data.copy()
     
-    for _, row in result.iterrows():
-        with st.expander(f"🏢 {row['企業名']} (スコア: {row['スコア']:.1f})"):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write("**【外部マーケット状況】**")
-                st.write(f"📈 成長率: {row['成長率']}%")
-                st.write(f"💼 求人増加: +{row['求人増加']}件")
-            with col2:
-                st.write("**【社内エンゲージメント】**")
-                contact = row['接点者'] if pd.notna(row['接点者']) else "❌ 接点なし"
-                st.write(f"👤 担当者: {contact}")
-                st.write(f"🗓 最終接触: {row['最終商談日']}")
-            
-            # AIアドバイス
-            if pd.notna(row['接点者']):
-                st.info(f"💡 アドバイス: {row['接点者']}経由で、最新の求人動向に基づいた再提案が有効です。")
-            else:
-                st.warning("💡 アドバイス: 成長が著しいため、新規のアウトバウンド・コンタクトを推奨します。")
+    reasons = [] # 抽出理由を格納
 
-else:
-    st.info("左側のサイドバーで条件を設定し、ボタンを押してください。")
+    # 「渋谷」というキーワードへの反応
+    if "渋谷" in query:
+        filtered_df = filtered_df[filtered_df["所在地"] == "渋谷区"]
+        reasons.append("所在地が『渋谷区』の企業を抽出しました。")
+
+    # 「200坪」＝ 従業員数 60〜100名程度と解釈するロジック
+    if "200坪" in query or "広め" in query:
+        # 1人3坪計算で、60人〜100人程度の規模をターゲットにする
+        filtered_df = filtered_df[(filtered_df["従業員数"] >= 50) & (filtered_df["従業員数"] <= 100)]
+        reasons.append("200坪（約60-100名規模）に最適なサイズの企業を特定しました。")
+    
+    # 「成長」などのワードがあれば成長率でソート
+    if "良い" in query or "成長" in query or "おすすめ" in query:
+        filtered_df = filtered_df.sort_values("成長率", ascending=False)
+        reasons.append("成長率が高く、オフィス拡張の可能性が高い順に並べ替えました。")
+
+    return filtered_df, reasons
+
+# --- 3. UI構成 ---
+st.set_page_config(page_title="AI Target Agent", layout="wide")
+st.title("🧠 AIターゲット・エージェント")
+st.markdown("### Clay風：自然言語でアタックリストを作成")
+
+# ユーザー入力
+user_input = st.text_area(
+    "どのようなリストを作成しますか？", 
+    placeholder="例：渋谷のオフィスで、200坪くらいの区画を埋めたいんだが、良さそうなリストを作成して",
+    height=100
+)
+
+if st.button("リストを生成する"):
+    if user_input:
+        with st.spinner('AIが意図を解釈してデータを統合中...'):
+            time.sleep(2) # 思考時間を演出
+            
+            all_data = get_advanced_data()
+            result_df, thoughts = ai_list_agent(user_input, all_data)
+            
+            # AIの思考プロセスの表示
+            st.success("リストの生成が完了しました！")
+            with st.expander("AIの抽出ロジックを確認"):
+                for t in thoughts:
+                    st.write(f"✅ {t}")
+
+            # 結果の表示
+            if len(result_df) > 0:
+                for _, row in result_df.iterrows():
+                    with st.container():
+                        st.markdown(f"### {row['企業名']}")
+                        c1, c2, c3 = st.columns(3)
+                        c1.metric("所在地", row["所在地"])
+                        c2.metric("従業員数", f"{row['従業員数']}名")
+                        c3.metric("成長率", f"{row['成長率']}%")
+                        
+                        # 社内接点状況
+                        if row["接点者"] != "なし":
+                            st.info(f"🔗 社内接点あり: {row['接点者']}（最終商談: {row['最終商談日']}）")
+                        else:
+                            st.warning("⚠️ 社内接点なし：新規アプローチが必要です")
+                        st.divider()
+            else:
+                st.error("該当する企業が見つかりませんでした。条件を緩めてみてください。")
+    else:
+        st.warning("プロンプトを入力してください。")
